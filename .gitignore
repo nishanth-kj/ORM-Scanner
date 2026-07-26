@@ -1,0 +1,12 @@
+node_modules/
+.env
+.env.*
+.next/
+*.pdf
+python/downloads/
+android/.idea/
+android/build/
+android/.gradle/
+android/app/build/
+android/local.properties
+.DS_Store
