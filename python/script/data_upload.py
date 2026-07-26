@@ -11,7 +11,8 @@ TOTAL_REQUESTS = 10000
 CONCURRENT_REQUESTS = 500
 
 OPTIONS = ["A", "B", "C", "D"]
-BOOKLET_VERSIONS = ["A1", "A2", "B1", "B2", "C1", "C2"]
+BOOKLET_VERSIONS = ["A1", "A2", "A3", "A4", "B1", "B2", "B3", "B4", "C1", "C2", "C3", "C4", "D1", "D2", "D3", "D4"]
+BRANCHES = ["Civil Engineering", "Computer Stream", "Mechanical Stream", "Electrical Stream"]
 
 
 def random_name(length=10):
@@ -20,23 +21,19 @@ def random_name(length=10):
 
 def generate_answers():
     responses = []
-
-    for i in range(1, 51):
-        user_answer = random.choice(OPTIONS)
-
+    for i in range(1, 101):
         responses.append({
             "question_number": i,
-            "user_answer": user_answer
+            "user_answer": random.choice(OPTIONS)
         })
-
     return responses
 
 
 def generate_payload(index):
     return {
         "candidate_name": random_name(),
-        "registration_number": 100000000 + index,
-        "paper": random.randint(1, 4),
+        "registration_number": str(100000000 + index),
+        "branch": random.choice(BRANCHES),
         "booklet_version": random.choice(BOOKLET_VERSIONS),
         "booklet_serial_no": str(random.randint(100000, 999999)),
         "answer_responses": generate_answers()
@@ -82,14 +79,8 @@ async def main():
     ) as session:
 
         tasks = []
-
         for i in range(TOTAL_REQUESTS):
-
-            print(f"Creating Task {i}")
-
-            tasks.append(
-                upload(session, semaphore, i)
-            )
+            tasks.append(upload(session, semaphore, i))
 
         print()
         print(f"Created {len(tasks)} Tasks")
