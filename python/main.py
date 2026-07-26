@@ -1,8 +1,8 @@
 import sys
 import json
 import argparse
-import requests
 from service.scanner_service import OMRScanner
+from service.api_service import ApiService
 
 def main():
     parser = argparse.ArgumentParser(description="OMR Scanner CLI")
@@ -33,17 +33,14 @@ def main():
             ]
         }
         
-        # Send to Next.js API
-        api_url = "http://localhost:3000/api/v1/answer-sheet/upload"
-        try:
-            print(f"\nSending data to API: {api_url}")
-            response = requests.post(api_url, json=db_payload, timeout=10)
-            if response.status_code == 200:
-                print(f"Successfully sent data to API! Response: {response.json()}")
-            else:
-                print(f"API returned error: {response.status_code} - {response.text}")
-        except Exception as e:
-            print(f"Failed to reach API: {e}")
+        # Send to Next.js API using ApiService
+        api_service = ApiService()
+        success = api_service.upload_answer_sheet(db_payload)
+        
+        if success:
+            print("\nFinished successfully!")
+        else:
+            print("\nFailed to upload results to server.")
 
 if __name__ == "__main__":
     main()

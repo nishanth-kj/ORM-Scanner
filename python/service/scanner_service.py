@@ -121,51 +121,111 @@ class OMRScanner:
             
         return img # Return original if no boundary found
 
+    def extract_grid(self, img: np.ndarray, x: int, y: int, w: int, h: int, rows: int, cols: int, options_per_row: int = 4) -> list:
+        """
+        Slices a bounding box into rows and columns, analyzing pixel density to find filled bubbles.
+        Returns a list of answers for each row.
+        """
+        grid_roi = img[y:y+h, x:x+w]
+        gray = cv2.cvtColor(grid_roi, cv2.COLOR_BGR2GRAY)
+        blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+        thresh = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)[1]
+
+        row_h = h // rows
+        col_w = w // cols
+        
+        results = []
+        for r in range(rows):
+            row_y = r * row_h
+            best_density = 0
+            best_option = None
+            
+            for c in range(options_per_row):
+                col_x = c * col_w
+                cell = thresh[row_y:row_y+row_h, col_x:col_x+col_w]
+                
+                # Count non-zero pixels (white pixels in binary inverted image)
+                density = cv2.countNonZero(cell)
+                if density > best_density and density > (row_h * col_w * 0.3): # 30% fill threshold
+                    best_density = density
+                    best_option = c + 1 # Options are 1, 2, 3, 4
+                    
+            if best_option is not None:
+                results.append(str(best_option))
+            else:
+                results.append(None) # No bubble filled or too light
+                
+        return results
+
     def extract_registration(self, img: np.ndarray) -> str:
         """
-        Extract the registration number by analyzing the pixel density 
-        in the top registration grid.
+        Extract the 9-digit registration number by analyzing the grid.
+        Grid is 9 columns wide, 10 rows high (0-9).
         """
-        # Placeholder for exact coordinate cropping based on the specific template
-        return "12345678"
+        height, width = img.shape[:2]
+        
+        # Approximate relative coordinates for the Registration Number block (Block 2)
+        # These will need to be calibrated for the exact physical paper
+        x = int(width * 0.1)
+        y = int(height * 0.15)
+        w = int(width * 0.3)
+        h = int(height * 0.2)
+        
+        gray = cv2.cvtColor(img[y:y+h, x:x+w], cv2.COLOR_BGR2GRAY)
+        thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)[1]
+        
+        rows = 10
+        cols = 9
+        row_h = h // rows
+        col_w = w // cols
+        
+        reg_number = ""
+        for c in range(cols):
+            best_density = 0
+            best_val = "0"
+            for r in range(rows):
+                cell = thresh[r*row_h:(r+1)*row_h, c*col_w:(c+1)*col_w]
+                density = cv2.countNonZero(cell)
+                if density > best_density and density > (row_h * col_w * 0.3):
+                    best_density = density
+                    best_val = str(r)
+            reg_number += best_val
+            
+        logger.info(f"Extracted Registration Number: {reg_number}")
+        return reg_number if len(reg_number) == 9 else "000000000"
 
     def extract_answers(self, img: np.ndarray) -> dict:
         """
-        Analyze the pixel density to determine which bubble is filled.
-        Returns a dictionary of Question Number -> Answer (e.g., {"1": "A", "2": "C"}).
+        Slice the answer grid into 4 columns of 25 questions.
         """
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        blurred = cv2.GaussianBlur(gray, (5, 5), 0)
-        thresh = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)[1]
-        
-        # Find all contours
-        contours, _ = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        
-        bubbles = []
-        for c in contours:
-            (x, y, w, h) = cv2.boundingRect(c)
-            ar = w / float(h)
-            
-            # Filter contours to find bubbles (roughly circular/square)
-            if w >= 15 and h >= 15 and 0.8 <= ar <= 1.2:
-                bubbles.append(c)
-        
-        # If we didn't find enough bubbles, fallback to dummy data for now
-        # until the YOLO model or specific template coordinates are provided.
+        height, width = img.shape[:2]
         answers = {}
-        if len(bubbles) < 100:
-            logger.warning(f"Only found {len(bubbles)} bubbles. Needs template calibration.")
-            for i in range(1, 101):
-                answers[str(i)] = "A" # Dummy fallback
-            return answers
-            
-        # TODO: Sort bubbles into columns and rows based on the specific PGCET template.
-        # This requires precise X/Y grouping which is best done with YOLO bounding boxes 
-        # for the specific question grids.
         
-        for i in range(1, 101):
-            answers[str(i)] = "A"
+        # Define 4 column boundaries (Relative coordinates based on standard A4 OMR)
+        # Block 1 (Q1-Q25), Block 2 (Q26-Q50), Block 3 (Q51-Q75), Block 4 (Q76-Q100)
+        columns_config = [
+            {"q_start": 1,  "x_pct": 0.05, "y_pct": 0.45, "w_pct": 0.20, "h_pct": 0.50},
+            {"q_start": 26, "x_pct": 0.30, "y_pct": 0.45, "w_pct": 0.20, "h_pct": 0.50},
+            {"q_start": 51, "x_pct": 0.55, "y_pct": 0.45, "w_pct": 0.20, "h_pct": 0.50},
+            {"q_start": 76, "x_pct": 0.80, "y_pct": 0.45, "w_pct": 0.20, "h_pct": 0.50},
+        ]
+        
+        for col in columns_config:
+            x = int(width * col["x_pct"])
+            y = int(height * col["y_pct"])
+            w = int(width * col["w_pct"])
+            h = int(height * col["h_pct"])
             
+            # Options map from 1,2,3,4 to A,B,C,D based on Next.js DB expectations
+            option_map = {"1": "A", "2": "B", "3": "C", "4": "D"}
+            
+            col_answers = self.extract_grid(img, x, y, w, h, rows=25, cols=4, options_per_row=4)
+            
+            for i, ans in enumerate(col_answers):
+                q_num = str(col["q_start"] + i)
+                # If an answer was found, map it, else leave empty/default
+                answers[q_num] = option_map.get(ans, "A") 
+                
         return answers
 
     def _order_points(self, pts):
