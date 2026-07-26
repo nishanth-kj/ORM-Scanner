@@ -1,0 +1,270 @@
+{
+  "id": "9b04e3cd-dc52-403b-9493-d176fe8294c8",
+  "prevId": "8f0f38dd-5871-4ef5-8e55-54fc6ca1148f",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.answer_sheet": {
+      "name": "answer_sheet",
+      "schema": "",
+      "columns": {
+        "answer_sheet_id": {
+          "name": "answer_sheet_id",
+          "type": "bigserial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "candidate_name": {
+          "name": "candidate_name",
+          "type": "varchar(30)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "registration_number": {
+          "name": "registration_number",
+          "type": "varchar(9)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "paper": {
+          "name": "paper",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "booklet_version": {
+          "name": "booklet_version",
+          "type": "char(2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "booklet_serial_no": {
+          "name": "booklet_serial_no",
+          "type": "varchar(6)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "answer_sheet_registration_number_unique": {
+          "name": "answer_sheet_registration_number_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "registration_number"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.question_and_answer": {
+      "name": "question_and_answer",
+      "schema": "",
+      "columns": {
+        "question_and_answer_id": {
+          "name": "question_and_answer_id",
+          "type": "bigserial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "year": {
+          "name": "year",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 2026
+        },
+        "branch": {
+          "name": "branch",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "paper": {
+          "name": "paper",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "booklet_version": {
+          "name": "booklet_version",
+          "type": "varchar(2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "question_number": {
+          "name": "question_number",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "question_text": {
+          "name": "question_text",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "option_a": {
+          "name": "option_a",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "option_b": {
+          "name": "option_b",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "option_c": {
+          "name": "option_c",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "option_d": {
+          "name": "option_d",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "correct_answer": {
+          "name": "correct_answer",
+          "type": "varchar(1)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "question_and_answer_unique": {
+          "name": "question_and_answer_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "year",
+            "branch",
+            "booklet_version",
+            "question_number"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.responses": {
+      "name": "responses",
+      "schema": "",
+      "columns": {
+        "response_id": {
+          "name": "response_id",
+          "type": "bigserial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "answer_sheet_id": {
+          "name": "answer_sheet_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "question_number": {
+          "name": "question_number",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "user_answer": {
+          "name": "user_answer",
+          "type": "varchar(1)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "correct_answer": {
+          "name": "correct_answer",
+          "type": "varchar(1)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "responses_answer_sheet_id_answer_sheet_answer_sheet_id_fk": {
+          "name": "responses_answer_sheet_id_answer_sheet_answer_sheet_id_fk",
+          "tableFrom": "responses",
+          "tableTo": "answer_sheet",
+          "columnsFrom": [
+            "answer_sheet_id"
+          ],
+          "columnsTo": [
+            "answer_sheet_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {},
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}
