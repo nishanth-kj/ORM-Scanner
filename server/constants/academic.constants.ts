@@ -1,10 +1,8 @@
 export enum BranchCode {
-  CS = "CS",
-  EC = "EC",
-  EE = "EE",
-  ME = "ME",
-  CE = "CE",
-  IS = "IS"
+  CIVIL = "Civil Engineering",
+  COMPUTER = "Computer Stream",
+  MECHANICAL = "Mechanical Stream",
+  ELECTRICAL = "Electrical Stream"
 }
 
 export class BranchCodeHelper {
@@ -16,18 +14,15 @@ export class BranchCodeHelper {
   }
 }
 
-export enum PaperCode {
-  PAPER_1 = 1,
-  PAPER_2 = 2,
-  PAPER_3 = 3,
-  PAPER_4 = 4,
-}
+export const BookletVersions = [
+  "A1", "A2", "A3", "A4",
+  "B1", "B2", "B3", "B4",
+  "C1", "C2", "C3", "C4",
+  "D1", "D2", "D3", "D4"
+] as const;
 
-export class PaperCodeHelper {
-  static getCodes(): string[] {
-    return Object.keys(PaperCode).filter(k => isNaN(Number(k)));
-  }
-  static getValues(): number[] {
-    return Object.values(PaperCode).filter(v => typeof v === "number") as number[];
+export class BookletVersionHelper {
+  static getValues(): string[] {
+    return [...BookletVersions];
   }
 }

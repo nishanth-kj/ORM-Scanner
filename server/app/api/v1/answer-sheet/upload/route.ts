@@ -5,15 +5,20 @@ import { ErrorCode, ErrorMessage } from "@/constants";
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    const data = await AnswerSheetService.upload(body);
-    return ApiResponse.success(data);
+    const data = await request.json();
+    
+    Logger.info("Received scanned OMR data from Python", { registration_number: data.registration_number });
+    
+    // Save to the database
+    const savedRecord = await AnswerSheetService.upload(data);
+    
+    return ApiResponse.success({ db_record: savedRecord });
   } catch (error: any) {
+    Logger.error("Error in upload API", error);
+    // Return detailed validation errors if it's a ValidationError
     if (error.name === "ValidationError") {
-      Logger.warn("Validation failed for upload", { fields: error.fields });
       return ApiResponse.error(error.message, error.statusCode, error.fields);
     }
-    Logger.error("Error in upload API", error);
     return ApiResponse.error(ErrorMessage.INTERNAL_SERVER_ERROR, ErrorCode.INTERNAL_SERVER_ERROR);
   }
 }

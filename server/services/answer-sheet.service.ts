@@ -2,7 +2,7 @@ import { db } from "@/lib/db";
 import { answerSheet, responses, questionAndAnswer } from "@/lib/schema";
 import { ilike, or, and, desc, asc, eq, sql } from "drizzle-orm";
 import { Logger } from "@/lib/logger";
-import { Status, PaperCodeHelper } from "@/constants";
+import { Status } from "@/constants";
 import { Validator } from "@/lib/validator";
 
 export class AnswerSheetService {

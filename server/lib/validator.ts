@@ -1,4 +1,4 @@
-import { ErrorCode, ErrorMessage, PaperCodeHelper } from "@/constants";
+import { ErrorCode, ErrorMessage, BranchCodeHelper, BookletVersionHelper } from "@/constants";
 
 export class ValidationError extends Error {
   public statusCode: number;
@@ -27,13 +27,14 @@ export class Validator {
       data.registration_number = regNum; // Normalize to string for the service
     }
 
-    const validPapers = PaperCodeHelper.getValues();
-    if (!data.paper || typeof data.paper !== 'number' || !validPapers.includes(data.paper)) {
-      errors.paper = `Paper must be a valid code: ${validPapers.join(', ')}`;
+    const validBranches = BranchCodeHelper.getValues();
+    if (!data.branch || typeof data.branch !== 'string' || !validBranches.includes(data.branch)) {
+      errors.branch = `Branch must be a valid stream: ${validBranches.join(', ')}`;
     }
 
-    if (!data.booklet_version || typeof data.booklet_version !== 'string' || data.booklet_version.length > 2) {
-      errors.booklet_version = "Booklet version must be a string up to 2 characters";
+    const validBookletVersions = BookletVersionHelper.getValues();
+    if (!data.booklet_version || typeof data.booklet_version !== 'string' || !validBookletVersions.includes(data.booklet_version)) {
+      errors.booklet_version = `Booklet version must be one of: ${validBookletVersions.join(', ')}`;
     }
 
     if (!data.booklet_serial_no || typeof data.booklet_serial_no !== 'string' || data.booklet_serial_no.length > 6) {
