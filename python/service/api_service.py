@@ -5,14 +5,14 @@ from typing import Dict, Any
 logger = logging.getLogger(__name__)
 
 class ApiService:
-    def __init__(self, base_url: str = "http://localhost:3000/api/v1"):
+    def __init__(self, base_url: str = "http://localhost:3000"):
         self.base_url = base_url
 
     def upload_answer_sheet(self, payload: Dict[str, Any]) -> bool:
         """
         Send the extracted OMR data to the Next.js API to be saved in the database.
         """
-        url = f"{self.base_url}/answer-sheet/upload"
+        url = f"{self.base_url}/api/v1/answer-sheet/upload"
         try:
             logger.info(f"Sending data to API: {url}")
             response = requests.post(url, json=payload, timeout=10)
