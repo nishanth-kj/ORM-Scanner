@@ -1,0 +1,1 @@
+ALTER TABLE "answer_sheet" ALTER COLUMN "booklet_serial_no" SET DATA TYPE varchar(7);

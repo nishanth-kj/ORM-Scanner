@@ -8,6 +8,13 @@
       "when": 1785087405641,
       "tag": "0000_whole_black_panther",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1785176190002,
+      "tag": "0001_blue_madame_web",
+      "breakpoints": true
     }
   ]
 }

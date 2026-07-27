@@ -37,8 +37,8 @@ export class Validator {
       errors.booklet_version = `Booklet version must be one of: ${validBookletVersions.join(', ')}`;
     }
 
-    if (!data.booklet_serial_no || typeof data.booklet_serial_no !== 'string' || data.booklet_serial_no.length > 6) {
-      errors.booklet_serial_no = "Booklet serial number must be a string up to 6 characters";
+    if (!data.booklet_serial_no || typeof data.booklet_serial_no !== 'string' || data.booklet_serial_no.length > 7) {
+      errors.booklet_serial_no = "Booklet serial number must be a string up to 7 characters";
     }
 
     const userResponses = data.responses || data.answer_responses;

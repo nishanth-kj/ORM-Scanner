@@ -16,7 +16,7 @@ export const answerSheet = pgTable("answer_sheet", {
   registrationNumber: varchar("registration_number", { length: 9 }).notNull().unique(),
   branch: varchar("branch", { length: 50 }).notNull().default('Civil Engineering'),
   bookletVersion: char("booklet_version", { length: 2 }).notNull(),
-  bookletSerialNo: varchar("booklet_serial_no", { length: 6 }).notNull(),
+  bookletSerialNo: varchar("booklet_serial_no", { length: 7 }).notNull(),
   status: integer("status").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),

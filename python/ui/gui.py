@@ -12,6 +12,8 @@ from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QHBoxLayout,
 from PySide6.QtGui import QImage, QPixmap, QPen, QColor, QBrush, QPainter
 from PySide6.QtCore import Qt, QRectF
 from service.scanner_service import OMRScanner
+from service.api_service import ApiService
+from main import build_payload
 
 DOWNLOADS_DIR = "downloads"
 
@@ -122,9 +124,11 @@ class ImageViewer(QGraphicsView):
             super().wheelEvent(event)
 
 class OMRExplorerApp(QMainWindow):
-    def __init__(self, scanner: OMRScanner):
+    def __init__(self, scanner: OMRScanner, api: ApiService):
         super().__init__()
         self.scanner = scanner
+        self.api = api
+        self._last_result = None  # stores the most recent ScanResult
         self.setWindowTitle("OMR Scanner - Interactive View")
         self.resize(1600, 900)
         
@@ -162,6 +166,11 @@ class OMRExplorerApp(QMainWindow):
         self.predict_all_btn.setStyleSheet("background-color: #20c997; color: white; font-weight: bold; padding: 10px;")
         self.predict_all_btn.setEnabled(False)
         self.predict_all_btn.clicked.connect(self.on_predict_all_clicked)
+
+        self.upload_btn = QPushButton("⬆  Upload to API")
+        self.upload_btn.setStyleSheet("background-color: #e74c3c; color: white; font-weight: bold; padding: 10px; font-size: 13px;")
+        self.upload_btn.setEnabled(False)
+        self.upload_btn.clicked.connect(self.on_upload_clicked)
         
         left_layout.addWidget(self.tree)
         left_layout.addWidget(self.predict_btn)
@@ -169,6 +178,7 @@ class OMRExplorerApp(QMainWindow):
         left_layout.addWidget(self.save_regions_btn)
         left_layout.addWidget(self.load_regions_btn)
         left_layout.addWidget(self.export_crops_btn)
+        left_layout.addWidget(self.upload_btn)
         
         # --- Middle Panel (Interactive Canvas) ---
         mid_layout = QVBoxLayout()
@@ -434,6 +444,9 @@ class OMRExplorerApp(QMainWindow):
                 override_regions=override_regions
             )
             
+            self._last_result = result  # store for upload
+            self.upload_btn.setEnabled(True)
+
             # Merge override_regions into JSON output!
             out_dict = result.to_dict()
             out_dict["regions"] = override_regions
@@ -461,6 +474,54 @@ class OMRExplorerApp(QMainWindow):
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to scan page:\n{str(e)}")
             self.info_text.setPlainText(f"Error: {str(e)}")
+
+    def on_upload_clicked(self):
+        """Build the API payload from the last ScanResult and POST it to the API."""
+        if self._last_result is None:
+            QMessageBox.warning(self, "No Data", "Please run 'Predict Bubbles' first to generate scan data.")
+            return
+
+        try:
+            payload = build_payload(self._last_result)
+        except Exception as e:
+            QMessageBox.critical(self, "Payload Error", f"Failed to build payload:\n{str(e)}")
+            return
+
+        # Show a preview of what will be sent
+        preview = json.dumps(payload, indent=2)
+        confirm = QMessageBox.question(
+            self,
+            "Confirm Upload",
+            f"Upload the following data to the API?\n\n{preview[:800]}{'...' if len(preview) > 800 else ''}",
+            QMessageBox.Yes | QMessageBox.No,
+        )
+        if confirm != QMessageBox.Yes:
+            return
+
+        self.upload_btn.setEnabled(False)
+        self.upload_btn.setText("Uploading...")
+        QApplication.processEvents()
+
+        try:
+            success = self.api.upload_answer_sheet(payload)
+            if success:
+                QMessageBox.information(
+                    self, "Success",
+                    f"Successfully uploaded answer sheet for:\n"
+                    f"Reg: {payload.get('registration_number')}\n"
+                    f"Branch: {payload.get('branch')}\n"
+                    f"Booklet: {payload.get('booklet_version')}"
+                )
+                self.info_text.setPlainText(
+                    f"\u2705 Uploaded to API successfully!\n\nPayload sent:\n{json.dumps(payload, indent=2)}"
+                )
+            else:
+                QMessageBox.critical(self, "Upload Failed", "API returned an error. Check the terminal for details.")
+        except Exception as e:
+            QMessageBox.critical(self, "Upload Error", f"Failed to reach API:\n{str(e)}")
+        finally:
+            self.upload_btn.setEnabled(True)
+            self.upload_btn.setText("\u2b06  Upload to API")
 
     def on_predict_all_clicked(self):
         if not self.selected_file:
@@ -590,12 +651,15 @@ class OMRExplorerApp(QMainWindow):
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to save JSON:\n{str(e)}")
 
-def run_explorer(scanner: OMRScanner):
+def run_explorer(scanner: OMRScanner, api: ApiService = None):
     app = QApplication.instance()
     if not app:
         app = QApplication(sys.argv)
-        
-    explorer = OMRExplorerApp(scanner)
+
+    if api is None:
+        api = ApiService()  # fallback to default localhost:3000
+
+    explorer = OMRExplorerApp(scanner, api)
     explorer.show()
     explorer.raise_()
     explorer.activateWindow()

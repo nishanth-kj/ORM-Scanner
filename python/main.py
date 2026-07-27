@@ -37,12 +37,13 @@ logger = logging.getLogger(__name__)
 
 
 def build_payload(result: ScanResult) -> dict:
+    """Build the JSON payload that matches the Next.js API contract."""
     return {
         "candidate_name":      result.candidate_name or "Unknown",
         "registration_number": result.registration_number or "000000000",
-        "paper":               result.paper or "Unknown",
-        "booklet_version":     result.booklet_version or "A",
-        "booklet_serial_no":   result.booklet_serial_no or "00000",
+        "branch":              result.paper or "Unknown",  # paper field holds branch full name
+        "booklet_version":     result.booklet_version or "A1",
+        "booklet_serial_no":   result.booklet_serial_no or "0000000",
         "responses": [
             {
                 "question_number": r.question_number,
@@ -61,7 +62,7 @@ def main():
 
     try:
         from ui.gui import run_explorer
-        run_explorer(scanner)
+        run_explorer(scanner, api)
     except Exception as e:
         logger.error(f"Failed to start GUI: {e}")
         sys.exit(1)
