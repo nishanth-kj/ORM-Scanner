@@ -1,121 +1,110 @@
-# ORM Scanner — Python OMR Engine
+# ORM Scanner – Python OMR Engine
 
-OMR (Optical Mark Recognition) scanner for the **Karnataka Examinations Authority** answer sheet (MTA format).
+A robust Optical Mark Recognition (OMR) processing pipeline designed specifically for the **Karnataka Examinations Authority** answer sheets (MTA format). 
 
-**Pipeline:**
-- **YOLO** detects named layout regions on the sheet
-- **OpenCV** reads bubbles/digits inside each region
-- Results are uploaded to the Next.js API
+This engine is capable of reading heavily distorted, phone-scanned PDF pages, aligning them via perspective transformations, extracting handwritten digit bubbles, and pushing the extracted data to a Next.js REST API.
 
+---
 
+## 📖 Documentation
+- [OMR Algorithm Details](docs/algorithm.md)
+- [Interactive Debug GUI](docs/gui.md)
 
-## Run Commands
+---
 
-### Scan a single PDF (print only, no upload)
+## 🚀 Quick Start
+
+### Basic CLI Commands
+Run the scanner from the `python/` directory using `uv`.
+
 ```bash
+# Scan a single PDF (print only, no upload)
 uv run main.py downloads\101.pdf --no-upload
-```
 
-### Scan a single PDF and upload to API
-```bash
-uv run main.py downloads\101.pdf
-```
-
-### Scan a single PDF with YOLO region detection
-```bash
-uv run main.py downloads\101.pdf --yolo models\yolov8n.pt --no-upload
-```
-
-### Scan all PDFs in the downloads folder
-```bash
+# Scan all PDFs in the directory and upload results to API
 uv run main.py downloads\
+
+# Run the interactive Debug GUI
+uv run main.py downloads\101.pdf --show --no-upload
+
+# Point to a custom API server (default is http://localhost:3000)
+uv run main.py downloads\101.pdf --api-url http://localhost:8080
 ```
 
-### Scan all PDFs and upload to API
+### Region Detection (Optional YOLO Support)
+By default, the scanner uses mathematically precise bounding boxes defined in `default_regions.json` for a standard A4 format sheet. 
+If your scans have highly variable scaling or cropping, you can use a fine-tuned YOLOv8 model to dynamically detect the bounding boxes before bubble extraction.
+
 ```bash
-uv run main.py downloads\ --yolo models\yolov8n.pt
+uv run main.py downloads\101.pdf --yolo models\omr_regions.pt
 ```
 
-### Point to a custom API server
-```bash
-uv run main.py downloads\101.pdf --api-url http://localhost:3000
-```
-
-
-uv run main.py downloads\101.pdf --page 1 --show --no-upload
-
 ---
 
-## Flags
-
-| Flag | Default | Description |
-|---|---|---|
-| `pdf_path` | *(required)* | Path to a PDF file or a directory of PDFs |
-| `--yolo` | `None` | Path to trained YOLO model (`.pt`). Without it, region detection is skipped |
-| `--no-upload` | `False` | Print scan result only; do not send to Next.js API |
-| `--api-url` | `http://localhost:3000` | Base URL of the Next.js API |
-
----
-
-## PDF Format
-
-Each **page** in a PDF = one OMR answer sheet.
-
-Multi-page PDFs are fully supported — every page is scanned independently and uploaded as a separate answer sheet record.
-
----
-
-## Project Structure
+## 🛠️ Project Architecture
 
 ```
 python/
 ├── main.py                        # CLI entry point
-├── downloads/                     # PDF files to scan (101.pdf, 102.pdf, ...)
+├── pyproject.toml                 # Dependencies managed by `uv`
+├── default_regions.json           # Default MTA format bounding boxes
+├── docs/                          # Detailed documentation
 ├── models/
 │   └── yolov8n.pt                 # YOLO model (base or fine-tuned)
+├── ui/
+│   └── gui.py                     # Interactive debugger and bounding box tool
 └── service/
-    ├── scanner_service.py         # Orchestrator: PDF → ScanResult
-    ├── region_detector.py         # YOLO wrapper → named bounding boxes
-    ├── bubble_reader.py           # OpenCV pixel-fill bubble/digit reader
-    └── api_service.py             # HTTP upload to Next.js API
+    ├── scanner_service.py         # Orchestrator: PDF -> Align -> Crop -> Read
+    ├── region_detector.py         # YOLO bounding box dynamic detection
+    ├── bubble_reader.py           # Core OpenCV pixel-density digit extraction
+    └── api_service.py             # HTTP sync to the Next.js API
 ```
 
 ---
 
-## YOLO Region Classes
+## 📊 Expected Payload Format
 
-The YOLO model must be trained to detect these 9 classes (in order):
+When a scan is successfully processed, the engine sends a POST request to `<api-url>/api/scans` with the following JSON structure:
 
-| ID | Class Name | Description |
-|---|---|---|
-| 0 | `name_box` | Candidate name handwritten area |
-| 1 | `reg_box` | Registration Number digit-bubble grid (9 × 10) |
-| 2 | `paper_box` | Paper/stream selection bubbles |
-| 3 | `booklet_version_box` | Question booklet version (A/B/C/D) |
-| 4 | `booklet_serial_box` | Question booklet serial number digit grid |
-| 5 | `answer_block_col1` | Answer grid Q1–Q25 |
-| 6 | `answer_block_col2` | Answer grid Q26–Q50 |
-| 7 | `answer_block_col3` | Answer grid Q51–Q75 |
-| 8 | `answer_block_col4` | Answer grid Q76–Q100 |
-
-> **Note:** `yolov8n.pt` in `models/` is the base pretrained model.
-> Fine-tune it on annotated OMR sheets to enable accurate region detection.
+```json
+{
+  "scans": [
+    {
+      "registration_number": "201121013",
+      "booklet_serial_number": "2007011",
+      "paper": "1",
+      "booklet_version": "A",
+      "answers": {
+        "1": "C",
+        "2": "A",
+        "3": "B",
+        "4": "D",
+        "5": "C"
+      }
+    }
+  ]
+}
+```
 
 ---
 
-## Training a Custom Model
+## 🧠 Training a Custom YOLO Model
 
-1. Annotate 50–100 OMR sheet images using [Roboflow](https://roboflow.com) with the 9 classes above
-2. Export dataset in **YOLOv8 format**
-3. Train:
+To enable dynamic region detection instead of relying on `default_regions.json`:
+
+1. Annotate 50–100 OMR sheet images using [Roboflow](https://roboflow.com) with the following classes:
+   - `name_box`
+   - `reg_box`
+   - `paper_box`
+   - `booklet_version_box`
+   - `booklet_serial_box`
+   - `answer_block_col1`, `answer_block_col2`, `answer_block_col3`, `answer_block_col4`
+2. Export the dataset in **YOLOv8 format**.
+3. Train the model:
    ```bash
    uv run -m yolo train model=models/yolov8n.pt data=dataset.yaml epochs=100 imgsz=1280
    ```
-4. Replace the model:
+4. Run the scanner with your new weights:
    ```bash
-   copy runs\detect\train\weights\best.pt models\omr_regions.pt
-   ```
-5. Run with the trained model:
-   ```bash
-   uv run main.py downloads\ --yolo models\omr_regions.pt
+   uv run main.py downloads\ --yolo runs\detect\train\weights\best.pt
    ```
