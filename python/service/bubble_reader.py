@@ -259,20 +259,21 @@ def read_booklet_serial_number(
 ) -> str:
     """
     Specific function for the Booklet Serial Number.
-    The physical OMR sheet has 7 columns, but columns at indices 3 and 5 are empty spacers.
-    This reads all 7 columns and drops the spacers, returning a 5-digit string.
+    The physical OMR sheet uses the same 10-column spacing as the Registration Number,
+    but has gaps at indices 3, 6, and 9.
+    This reads all 10 columns and drops the gaps, returning a 7-digit string.
     """
     raw_number = read_digit_grid(
         crop,
-        digit_cols=7,
+        digit_cols=10,
         digit_rows=digit_rows,
         padding_ratio=padding_ratio,
         header_rows=header_rows
     )
-    
-    # If we successfully read 7 columns, drop columns at index 3 and 5
-    if len(raw_number) == 7:
-        return raw_number[:3] + raw_number[4:5] + raw_number[6:]
+
+    # If we successfully read 10 columns, drop columns at index 3, 6, and 9
+    if len(raw_number) == 10:
+        return raw_number[:3] + raw_number[4:6] + raw_number[7:9]
     return raw_number
 
 def read_booklet_version(
