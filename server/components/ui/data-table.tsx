@@ -9,6 +9,7 @@ import {
   useReactTable,
   VisibilityState,
   SortingState,
+  RowSelectionState,
 } from "@tanstack/react-table"
 import {
   DndContext,
@@ -49,6 +50,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { ChevronDown, RefreshCw, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react"
+import { Checkbox } from "@/components/ui/checkbox"
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[]
@@ -61,6 +63,7 @@ interface DataTableProps<TData, TValue> {
   onPaginationChange?: (page: number, size: number) => void
   onSearch?: (search: string, filters?: any) => void
   searchPlaceholder?: string
+  onSelectionChange?: (rows: TData[]) => void
 }
 
 export function DataTable<TData, TValue>({
@@ -73,12 +76,14 @@ export function DataTable<TData, TValue>({
   onRowClick,
   onPaginationChange,
   onSearch,
-  searchPlaceholder = "Search..."
+  searchPlaceholder = "Search...",
+  onSelectionChange,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({})
+  const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({})
   const [columnOrder, setColumnOrder] = React.useState<ColumnOrderState>(() =>
-    columns.map((c) => c.id as string ?? (c as any).accessorKey as string)
+    ["select", ...columns.map((c) => c.id as string ?? (c as any).accessorKey as string)]
   )
   
   const [inputValue, setInputValue] = React.useState("")
@@ -137,18 +142,54 @@ export function DataTable<TData, TValue>({
     }
   }
 
+  // Selection checkbox column
+  const selectColumn: ColumnDef<TData, TValue> = {
+    id: "select",
+    header: ({ table }) => (
+      <Checkbox
+        checked={
+          table.getIsAllPageRowsSelected() ||
+          (table.getIsSomePageRowsSelected() && "indeterminate")
+        }
+        onCheckedChange={(value: boolean | 'indeterminate') => table.toggleAllPageRowsSelected(!!value)}
+        aria-label="Select all"
+      />
+    ),
+    cell: ({ row }) => (
+      <Checkbox
+        checked={row.getIsSelected()}
+        onCheckedChange={(value: boolean | 'indeterminate') => row.toggleSelected(!!value)}
+        onClick={(e) => e.stopPropagation()}
+        aria-label="Select row"
+      />
+    ),
+    enableSorting: false,
+    enableHiding: false,
+  }
+
+  const allColumns = [selectColumn, ...columns]
+
   const table = useReactTable({
     data,
-    columns,
+    columns: allColumns,
     pageCount,
     state: {
       sorting,
       columnVisibility,
       columnOrder,
+      rowSelection,
       pagination: {
         pageIndex,
         pageSize,
       },
+    },
+    enableRowSelection: true,
+    onRowSelectionChange: (updater) => {
+      setRowSelection(updater)
+      // Notify parent of selected rows after state update
+      const next = typeof updater === "function" ? updater(rowSelection) : updater
+      const selectedRows = data.filter((_, i) => next[i])
+      onSelectionChange?.(selectedRows)
     },
     onSortingChange: setSorting,
     onColumnVisibilityChange: setColumnVisibility,
@@ -287,7 +328,7 @@ export function DataTable<TData, TValue>({
               {loading ? (
                 <TableRow>
                   <TableCell
-                    colSpan={columns.length}
+                    colSpan={allColumns.length}
                     className="h-24 text-center"
                   >
                     Loading...
@@ -314,7 +355,7 @@ export function DataTable<TData, TValue>({
               ) : (
                 <TableRow>
                   <TableCell
-                    colSpan={columns.length}
+                    colSpan={allColumns.length}
                     className="h-24 text-center"
                   >
                     No results found.
@@ -329,8 +370,13 @@ export function DataTable<TData, TValue>({
       {/* Bottom Section: Pagination and Row Size */}
       <div className="flex items-center justify-between px-2 py-4">
         {/* Left: Detail */}
-        <div className="flex-1 text-sm text-muted-foreground font-medium">
-          Showing {totalRecords === 0 ? 0 : pageIndex * pageSize + 1} to {Math.min((pageIndex + 1) * pageSize, totalRecords)} of {totalRecords} records
+        <div className="flex-1 text-sm text-muted-foreground font-medium flex flex-col gap-0.5">
+          <span>Showing {totalRecords === 0 ? 0 : pageIndex * pageSize + 1} to {Math.min((pageIndex + 1) * pageSize, totalRecords)} of {totalRecords} records</span>
+          {table.getFilteredSelectedRowModel().rows.length > 0 && (
+            <span className="text-primary font-semibold">
+              {table.getFilteredSelectedRowModel().rows.length} row{table.getFilteredSelectedRowModel().rows.length > 1 ? "s" : ""} selected
+            </span>
+          )}
         </div>
 
         {/* Center: Pagination */}
