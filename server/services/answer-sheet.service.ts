@@ -6,6 +6,16 @@ import { Status } from "@/constants";
 import { Validator } from "@/lib/validator";
 
 export class AnswerSheetService {
+  static mapAnswer(ans: string | null): string | null {
+    if (!ans) return null;
+    const normalized = ans.trim().toUpperCase();
+    if (normalized === '1') return 'A';
+    if (normalized === '2') return 'B';
+    if (normalized === '3') return 'C';
+    if (normalized === '4') return 'D';
+    return normalized;
+  }
+
   static async upload(data: any) {
     Validator.validateUploadData(data);
     
@@ -69,12 +79,13 @@ export class AnswerSheetService {
         // Bulk insert new responses in one DB call
         const responsesData = userResponses.map((r: any) => {
           const expected = answerKeyMap.get(r.question_number);
-          const isCorrect = expected && expected === r.user_answer;
+          const mappedUserAnswer = this.mapAnswer(r.user_answer);
+          const isCorrect = expected && expected === mappedUserAnswer;
           
           return {
             answerSheetId: newSheet.answerSheetId,
             questionNumber: r.question_number,
-            userAnswer: r.user_answer || null,
+            userAnswer: mappedUserAnswer,
             correctAnswer: expected || null,
             status: isCorrect ? 1 : 0,
           };
@@ -240,6 +251,40 @@ export class AnswerSheetService {
       .set({ status: newStatus, updatedAt: new Date() })
       .where(eq(answerSheet.answerSheetId, answerSheetId));
       
+    return true;
+  }
+
+  static async updateResponse(answerSheetId: number, questionNumber: number, userAnswer: string | null) {
+    const mappedUserAnswer = this.mapAnswer(userAnswer);
+    Logger.info("Updating response", { answerSheetId, questionNumber, userAnswer: mappedUserAnswer });
+
+    // Fetch the answer sheet to get the branch and booklet
+    const sheet = await db.query.answerSheet.findFirst({
+      where: eq(answerSheet.answerSheetId, answerSheetId),
+    });
+
+    if (!sheet) return false;
+
+    // Fetch expected answer
+    const answerKeys = await db.select().from(questionAndAnswer).where(
+      and(
+        eq(questionAndAnswer.branch, sheet.branch),
+        eq(questionAndAnswer.bookletVersion, sheet.bookletVersion),
+        eq(questionAndAnswer.questionNumber, questionNumber)
+      )
+    ).limit(1);
+
+    const expected = answerKeys.length > 0 ? answerKeys[0].correctAnswer : null;
+    const isCorrect = expected && expected === mappedUserAnswer;
+
+    await db.update(responses)
+      .set({
+        userAnswer: mappedUserAnswer || null,
+        correctAnswer: expected || null,
+        status: isCorrect ? 1 : 0,
+      })
+      .where(and(eq(responses.answerSheetId, answerSheetId), eq(responses.questionNumber, questionNumber)));
+
     return true;
   }
 }
