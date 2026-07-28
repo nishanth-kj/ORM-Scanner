@@ -536,26 +536,77 @@ class OMRExplorerApp(QMainWindow):
         QApplication.processEvents()
         
         try:
-            results = self.scanner.process_pdf(
-                pdf_path=self.selected_file,
-                page_limit=None,
-                show=False,
-                return_image=False,
-                override_regions=override_regions
-            )
+            import fitz
+            doc = fitz.open(self.selected_file)
+            total_pages = len(doc)
             
             out_list = []
-            for res in results:
+            selected_result = None
+            successful_uploads = 0
+            
+            for page_index in range(total_pages):
+                self.info_text.setPlainText(f"Processing page {page_index + 1} of {total_pages}...")
+                QApplication.processEvents()
+                
+                page = doc.load_page(page_index)
+                pix = page.get_pixmap(dpi=300)
+                img = np.frombuffer(pix.samples, dtype=np.uint8).reshape(pix.height, pix.width, pix.n)
+                img = cv2.cvtColor(img, cv2.COLOR_RGBA2BGR if pix.n == 4 else cv2.COLOR_RGB2BGR)
+                
+                res = self.scanner.process_image(
+                    img,
+                    show=False,
+                    return_image=False,
+                    override_regions=override_regions
+                )
+                res.warnings.insert(0, f"page={page_index + 1}")
+                
                 d = res.to_dict()
                 d["regions"] = override_regions
                 out_list.append(d)
+                
+                if (page_index + 1) == self.selected_page:
+                    selected_result = res
+                    
+                if res.success and res.registration_number:
+                    self.info_text.setPlainText(f"Page {page_index + 1} of {total_pages}: Processed. Uploading to API...")
+                    QApplication.processEvents()
+                    try:
+                        payload = build_payload(res)
+                        api_success = self.api.upload_answer_sheet(payload)
+                        if api_success:
+                            successful_uploads += 1
+                    except Exception as e:
+                        print(f"Failed to upload page {page_index + 1}: {e}")
+                        
+            doc.close()
                 
             self.batch_results = out_list
             pretty_json = json.dumps(out_list, indent=2)
             self.info_text.setPlainText(pretty_json)
             
             self.save_json_btn.setEnabled(True)
-            QMessageBox.information(self, "Batch Complete", f"Processed {len(results)} pages successfully!")
+            
+            # Show the selected page's crops in the UI
+            if selected_result:
+                self._last_result = selected_result
+                self.upload_btn.setEnabled(True)
+                if hasattr(selected_result, "debug_crops"):
+                    self.current_crops = selected_result.debug_crops
+                    self.export_crops_btn.setEnabled(True)
+                    val_map = {
+                        "candidate_name": selected_result.candidate_name,
+                        "registration_number": selected_result.registration_number,
+                        "paper": selected_result.paper,
+                        "booklet_version": selected_result.booklet_version,
+                        "booklet_serial_no": selected_result.booklet_serial_no,
+                    }
+                    for name, crop in selected_result.debug_crops.items():
+                        if crop is not None:
+                            pred_val = val_map.get(name, "")
+                            self.add_crop_image(name, crop, pred_val)
+                            
+            QMessageBox.information(self, "Batch Complete", f"Processed {total_pages} pages and successfully uploaded {successful_uploads} to the API!")
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Batch processing failed:\n{str(e)}")
             self.info_text.setPlainText(f"Error: {str(e)}")
