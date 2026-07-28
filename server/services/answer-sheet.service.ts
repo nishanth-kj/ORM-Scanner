@@ -46,7 +46,7 @@ export class AnswerSheetService {
         sheetId = inserted.answerSheetId;
       }
 
-      const newSheet = { answerSheetId: sheetId };
+      const newSheet = { answerSheetId: Number(sheetId) };
 
       if (userResponses && userResponses.length > 0) {
         // Clear previous responses for this answer sheet

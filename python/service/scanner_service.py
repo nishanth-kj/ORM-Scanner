@@ -392,25 +392,6 @@ class OMRScanner:
                         )
                     continue
 
-                rows = read_bubble_grid(
-                    block_crop,
-                    rows=QUESTIONS_PER_BLOCK,
-                    cols=OPTIONS_PER_QUESTION,
-                    labels=OPTIONS_ABCD,
-                )
-
-                for i, (answer, conf) in enumerate(rows):
-                    q_num = q_start + i
-                    if answer is None:
-                        warnings.append(f"Q{q_num}: unanswered or ambiguous (fill={conf:.3f})")
-                    result.answer_responses.append(
-                        AnswerResponse(
-                            question_number=q_num,
-                            user_answer=answer,
-                            confidence=conf,
-                        )
-                    )
-
             if show or return_image:
                 # Draw regions on the image for debugging
                 disp = aligned.copy()
