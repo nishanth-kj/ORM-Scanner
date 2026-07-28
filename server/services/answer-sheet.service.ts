@@ -203,7 +203,7 @@ export class AnswerSheetService {
       status: sheet.status,
       created_at: sheet.createdAt,
       updated_at: sheet.updatedAt,
-      responses: sheet.responses.map(r => {
+      responses: sheet.responses.sort((a, b) => a.questionNumber - b.questionNumber).map(r => {
         const keyData = answerKeyMap.get(r.questionNumber);
         return {
           question_number: r.questionNumber,
